@@ -98,27 +98,66 @@ async function handleObjectDetection(request: Request, env: Env) {
 }
 
 async function handleChat(request: Request, env: Env) {
-  const { messages } = await request.json<{ messages: { role: string; content: string }[] }>();
+  const { messages, editContext } = await request.json<{
+    messages: { role: string; content: string }[];
+    editContext?: Record<string, unknown>;
+  }>();
   if (!messages?.length) return json({ error: "messages is required" }, 400);
 
-  const systemPrompt = `You are an AI video editing assistant. You help users edit videos by suggesting commands and controls.
-You can help with:
-- Trimming clips
-- Adding text overlays
-- Generating images for backgrounds or overlays
-- Adding voiceovers
-- Creating captions
-- Arranging scenes
+  const contextStr = editContext ? `\nCurrent video state: ${JSON.stringify(editContext)}` : "";
 
-When the user asks you to perform an action, respond with a JSON action object like:
-{"action": "trim", "params": {"start": 0, "end": 5}}
-{"action": "add_text_overlay", "params": {"text": "Hello", "x": 100, "y": 100, "fontSize": 32}}
-{"action": "generate_image", "params": {"prompt": "sunset over ocean"}}
-{"action": "add_voiceover", "params": {"text": "Welcome to our video"}}
-{"action": "add_caption", "params": {"text": "Caption text", "start": 0, "end": 3}}
-{"action": "reorder_clips", "params": {"order": [2, 0, 1]}}
+  const systemPrompt = `You are an AI video editing assistant. You MUST perform actions by outputting JSON action objects. Always execute the user's request.
 
-Also provide a friendly text response explaining what you're doing.`;
+AVAILABLE ACTIONS (output one or more JSON objects):
+
+TRIM video:
+{"action":"trim","params":{"start":<seconds>,"end":<seconds>}}
+
+CHANGE SPEED:
+{"action":"speed","params":{"rate":0.5}} (0.25 to 4.0)
+
+ADJUST VISUALS:
+{"action":"brightness","params":{"value":130}} (0-200, default 100)
+{"action":"contrast","params":{"value":130}} (0-200, default 100)
+{"action":"saturate","params":{"value":150}} (0-200, default 100)
+{"action":"blur","params":{"value":3}} (0-20 pixels)
+{"action":"grayscale","params":{"value":100}} (0-100)
+{"action":"sepia","params":{"value":100}} (0-100)
+{"action":"reset_filters","params":{}}
+
+ROTATE/FLIP:
+{"action":"rotate","params":{"degrees":90}}
+{"action":"flip","params":{"direction":"horizontal"}}
+{"action":"flip","params":{"direction":"vertical"}}
+
+ADD TEXT OVERLAY:
+{"action":"add_text_overlay","params":{"text":"Hello World","x":100,"y":200,"fontSize":48,"color":"#ffffff","bgColor":"rgba(0,0,0,0.5)","start":0,"end":5}}
+
+REMOVE TEXT:
+{"action":"remove_text","params":{"text":"partial text to match"}}
+{"action":"clear_text","params":{}}
+
+ADD CAPTION (text at bottom with background):
+{"action":"add_caption","params":{"text":"Caption here","start":0,"end":5}}
+
+GENERATE IMAGE (AI image generation):
+{"action":"generate_image","params":{"prompt":"sunset over ocean"}}
+
+ADD VOICEOVER (text-to-speech):
+{"action":"add_voiceover","params":{"text":"Welcome to our video"}}
+
+DETECT OBJECTS in current frame:
+{"action":"detect_objects","params":{}}
+
+GET VIDEO INFO:
+{"action":"get_info","params":{}}
+
+RULES:
+1. ALWAYS output the action JSON when the user asks you to edit something
+2. You can output multiple actions in sequence
+3. Use the current video state to make smart decisions
+4. Be concise and friendly
+5. After performing actions, confirm what you did${contextStr}`;
 
   const allMessages: RoleScopedChatInput[] = [
     { role: "system", content: systemPrompt },

@@ -106,6 +106,53 @@ body {
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .full-width { width: 100%; }
 
+/* Edit Controls */
+#edit-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.edit-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-group label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-width: 50px;
+}
+
+.edit-group input[type="range"] {
+  width: 80px;
+  height: 4px;
+  -webkit-appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+.edit-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.edit-group span {
+  font-size: 11px;
+  color: var(--accent-light);
+  min-width: 28px;
+}
+
 /* Workspace */
 #workspace {
   display: grid;

@@ -31,6 +31,30 @@
           <video id="hidden-video" style="display:none" crossorigin="anonymous"></video>
         </div>
         <div id="overlays-container"></div>
+        <div id="edit-controls">
+          <div class="edit-group">
+            <label>Speed</label>
+            <input id="ctrl-speed" type="range" min="0.25" max="4" step="0.25" value="1" />
+            <span id="ctrl-speed-val">1x</span>
+          </div>
+          <div class="edit-group">
+            <label>Brightness</label>
+            <input id="ctrl-brightness" type="range" min="0" max="200" value="100" />
+          </div>
+          <div class="edit-group">
+            <label>Contrast</label>
+            <input id="ctrl-contrast" type="range" min="0" max="200" value="100" />
+          </div>
+          <div class="edit-group">
+            <label>Saturate</label>
+            <input id="ctrl-saturate" type="range" min="0" max="200" value="100" />
+          </div>
+          <div class="edit-group">
+            <button id="ctrl-reset" class="btn btn-secondary btn-small">Reset</button>
+            <button id="ctrl-rotate" class="btn btn-secondary btn-small">Rotate 90</button>
+            <button id="ctrl-flip-h" class="btn btn-secondary btn-small">Flip H</button>
+          </div>
+        </div>
       </div>
 
       <div id="ai-panel">

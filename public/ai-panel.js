@@ -36,20 +36,21 @@ class AIPanel {
 
       try {
         this.chatMessages.push({ role: "user", content: text });
-        const data = await apiPostJSON("/api/chat", { messages: this.chatMessages });
+        const data = await apiPostJSON("/api/chat", {
+          messages: this.chatMessages,
+          editContext: this.editor.getEditSummary(),
+        });
         const response = data.response || data.choices?.[0]?.message?.content || "No response";
         this.chatMessages.push({ role: "assistant", content: response });
         this.addChatMessage("ai", response);
-        this.parseChatAction(response);
+        this.parseAndExecute(response);
       } catch (err) {
         this.addChatMessage("ai", `Error: ${err.message}`);
       }
     };
 
     btn.addEventListener("click", send);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") send();
-    });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
   }
 
   addChatMessage(role, text) {
@@ -59,65 +60,142 @@ class AIPanel {
     container.scrollTop = container.scrollHeight;
   }
 
-  parseChatAction(response) {
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*"action"[\s\S]*\}/);
-      if (!jsonMatch) return;
-      const action = JSON.parse(jsonMatch[0]);
-      this.executeAction(action);
-    } catch {
-      // Not JSON, that's fine
+  parseAndExecute(response) {
+    // Look for action blocks in the response
+    const actionRegex = /\{"action"\s*:\s*"[^"]+"[^}]*\}/g;
+    const matches = response.match(actionRegex);
+    if (matches) {
+      matches.forEach((match) => {
+        try {
+          const action = JSON.parse(match);
+          this.executeAction(action);
+        } catch {}
+      });
     }
   }
 
   executeAction(action) {
+    const e = this.editor;
     switch (action.action) {
       case "trim":
-        this.editor.seekTo(action.params.start * 1000);
+        e.trim(action.params.start * 1000, action.params.end * 1000);
+        this.addChatMessage("ai", `Trimmed to ${action.params.start}s - ${action.params.end}s`);
         break;
+
+      case "speed":
+        e.setSpeed(action.params.rate);
+        this.addChatMessage("ai", `Playback speed set to ${action.params.rate}x`);
+        break;
+
+      case "brightness":
+        e.setBrightness(action.params.value);
+        break;
+
+      case "contrast":
+        e.setContrast(action.params.value);
+        break;
+
+      case "saturate":
+        e.setSaturate(action.params.value);
+        break;
+
+      case "blur":
+        e.setBlur(action.params.value);
+        break;
+
+      case "grayscale":
+        e.setGrayscale(action.params.value);
+        break;
+
+      case "sepia":
+        e.setSepia(action.params.value);
+        break;
+
+      case "reset_filters":
+        e.resetFilters();
+        this.addChatMessage("ai", "All filters reset to default");
+        break;
+
+      case "rotate":
+        e.rotate(action.params.degrees || 90);
+        break;
+
+      case "flip":
+        if (action.params.direction === "horizontal") e.flipHorizontal();
+        else e.flipVertical();
+        break;
+
       case "add_text_overlay":
-        this.editor.addTextOverlay(
+        e.addTextOverlay(
           action.params.text,
           action.params.x || 100,
           action.params.y || 100,
-          action.params.fontSize || 48
+          action.params.fontSize || 48,
+          action.params.color || "#ffffff",
+          action.params.bgColor || null,
+          action.params.start ? action.params.start * 1000 : undefined,
+          action.params.end ? action.params.end * 1000 : undefined,
         );
+        this.timeline.addOverlayClip(action.params.text, 0, e.trimEnd);
+        this.addChatMessage("ai", `Added text overlay: "${action.params.text}"`);
         break;
+
+      case "remove_text":
+        e.overlays = e.overlays.filter(o => o.type !== "text" || !o.text.includes(action.params.text));
+        e.drawFrame();
+        break;
+
+      case "clear_text":
+        e.overlays = e.overlays.filter(o => o.type !== "text");
+        e.drawFrame();
+        this.addChatMessage("ai", "Cleared all text overlays");
+        break;
+
       case "generate_image":
         document.getElementById("gen-prompt").value = action.params.prompt || "";
         document.querySelector('[data-tab="generate"]').click();
         this.handleGenerate();
         break;
+
       case "add_voiceover":
         document.getElementById("tts-text").value = action.params.text || "";
         document.querySelector('[data-tab="tts"]').click();
         this.handleTTS();
         break;
+
+      case "detect_objects":
+        this.handleDetect();
+        break;
+
       case "add_caption":
-        this.editor.addTextOverlay(
+        e.addTextOverlay(
           action.params.text,
           50,
-          this.editor.canvas.height - 80,
+          e.canvas.height - 80,
           32,
-          "#ffffff"
+          "#ffffff",
+          "rgba(0,0,0,0.6)",
+          action.params.start ? action.params.start * 1000 : undefined,
+          action.params.end ? action.params.end * 1000 : undefined,
         );
+        this.addChatMessage("ai", `Added caption: "${action.params.text}"`);
         break;
-      case "reorder_clips":
-        this.addChatMessage("ai", "Clip reordering is available in the timeline. Drag clips to rearrange.");
+
+      case "get_info":
+        const info = e.getEditSummary();
+        this.addChatMessage("ai", `Video info: Duration ${info.duration / 1000}s, Trim ${info.trimStart / 1000}s-${info.trimEnd / 1000}s, Speed ${info.playbackRate}x, ${info.overlayCount} overlays`);
         break;
     }
   }
 
   setupGenerate() {
-    const btn = document.getElementById("btn-generate");
-    btn.addEventListener("click", () => this.handleGenerate());
-
+    document.getElementById("btn-generate").addEventListener("click", () => this.handleGenerate());
     document.getElementById("btn-gen-add-overlay").addEventListener("click", () => {
       if (!this.generatedImageUrl) return;
       const img = new Image();
       img.onload = () => {
         this.editor.addImageOverlay(img);
-        this.timeline.addOverlayClip("Generated Image", 0, this.editor.duration || 5000);
+        this.timeline.addOverlayClip("Generated Image", 0, this.editor.trimEnd);
       };
       img.src = this.generatedImageUrl;
     });
@@ -126,25 +204,19 @@ class AIPanel {
   async handleGenerate() {
     const prompt = document.getElementById("gen-prompt").value.trim();
     if (!prompt) return;
-
     const btn = document.getElementById("btn-generate");
     const preview = document.getElementById("gen-preview");
     const addBtn = document.getElementById("btn-gen-add-overlay");
-
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Generating...';
     preview.innerHTML = "";
     addBtn.style.display = "none";
-
     try {
-      const width = parseInt(document.getElementById("gen-width").value) || 512;
-      const height = parseInt(document.getElementById("gen-height").value) || 512;
       const res = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, width, height }),
+        body: JSON.stringify({ prompt, steps: 4 }),
       });
-
       const blob = await res.blob();
       this.generatedImageUrl = URL.createObjectURL(blob);
       preview.innerHTML = `<img src="${this.generatedImageUrl}" alt="Generated" />`;
@@ -158,9 +230,7 @@ class AIPanel {
   }
 
   setupTTS() {
-    const btn = document.getElementById("btn-tts");
-    btn.addEventListener("click", () => this.handleTTS());
-
+    document.getElementById("btn-tts").addEventListener("click", () => this.handleTTS());
     document.getElementById("btn-tts-add").addEventListener("click", () => {
       if (!this.ttsAudioUrl) return;
       const start = this.editor.currentTime;
@@ -168,6 +238,7 @@ class AIPanel {
       audio.addEventListener("loadedmetadata", () => {
         const end = start + audio.duration * 1000;
         this.timeline.addAudioClip("Voiceover", start, end, null, this.ttsAudioUrl);
+        this.addChatMessage("ai", `Added voiceover from ${start / 1000}s to ${end / 1000}s`);
       });
     });
   }
@@ -175,23 +246,19 @@ class AIPanel {
   async handleTTS() {
     const text = document.getElementById("tts-text").value.trim();
     if (!text) return;
-
     const btn = document.getElementById("btn-tts");
     const preview = document.getElementById("tts-preview");
     const addBtn = document.getElementById("btn-tts-add");
-
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Generating...';
     preview.innerHTML = "";
     addBtn.style.display = "none";
-
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
-
       const blob = await res.blob();
       this.ttsAudioUrl = URL.createObjectURL(blob);
       preview.innerHTML = `<audio controls src="${this.ttsAudioUrl}"></audio>`;
@@ -211,27 +278,16 @@ class AIPanel {
   async handleDetect() {
     const results = document.getElementById("detect-results");
     const btn = document.getElementById("btn-detect");
-
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Detecting...';
     results.innerHTML = "";
-
     try {
       const blob = await this.editor.getCanvasBlob();
       const formData = new FormData();
       formData.append("image", blob, "frame.png");
-
-      const res = await fetch("/api/detect-objects", {
-        method: "POST",
-        body: formData,
-      });
-
+      const res = await fetch("/api/detect-objects", { method: "POST", body: formData });
       const data = await res.json();
-      if (data.length === 0) {
-        results.innerHTML = "<p>No objects detected</p>";
-        return;
-      }
-
+      if (!data.length) { results.innerHTML = "<p>No objects detected</p>"; return; }
       data.forEach((item) => {
         const el = createElement("div", "detect-item", {
           html: `<span>${item.label || item.name || "Unknown"}</span><span class="detect-score">${(item.score * 100).toFixed(1)}%</span>`,
