@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Video Editor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <div class="toolbar-left">
+        <h1 class="logo">AI Video Editor</h1>
+        <button id="btn-import" class="btn btn-primary">Import Video</button>
+        <button id="btn-import-image" class="btn btn-secondary">Import Image</button>
+      </div>
+      <div class="toolbar-center">
+        <button id="btn-play" class="btn btn-icon" title="Play/Pause">&#9654;</button>
+        <button id="btn-stop" class="btn btn-icon" title="Stop">&#9632;</button>
+        <span id="time-display">00:00.000 / 00:00.000</span>
+      </div>
+      <div class="toolbar-right">
+        <button id="btn-export" class="btn btn-primary">Export Video</button>
+      </div>
+    </header>
+
+    <div id="workspace">
+      <div id="preview-panel">
+        <div id="canvas-container">
+          <canvas id="video-canvas" width="1280" height="720"></canvas>
+          <video id="hidden-video" style="display:none" crossorigin="anonymous"></video>
+        </div>
+        <div id="overlays-container"></div>
+      </div>
+
+      <div id="ai-panel">
+        <div class="ai-panel-header">
+          <h2>AI Assistant</h2>
+          <button id="btn-toggle-ai" class="btn btn-icon btn-small" title="Toggle AI Panel">&#9776;</button>
+        </div>
+        <div class="ai-panel-tabs">
+          <button class="tab active" data-tab="chat">Chat</button>
+          <button class="tab" data-tab="generate">Generate</button>
+          <button class="tab" data-tab="tts">Voice</button>
+          <button class="tab" data-tab="detect">Detect</button>
+        </div>
+
+        <div id="tab-chat" class="tab-content active">
+          <div id="chat-messages"></div>
+          <div class="chat-input-row">
+            <input id="chat-input" type="text" placeholder="Ask AI to edit your video..." />
+            <button id="btn-chat-send" class="btn btn-primary btn-small">Send</button>
+          </div>
+        </div>
+
+        <div id="tab-generate" class="tab-content">
+          <label>Describe the image to generate:</label>
+          <textarea id="gen-prompt" rows="3" placeholder="A sunset over mountains..."></textarea>
+          <div class="gen-controls">
+            <label>Width: <input id="gen-width" type="number" value="512" min="256" max="1024" step="64" /></label>
+            <label>Height: <input id="gen-height" type="number" value="512" min="256" max="1024" step="64" /></label>
+          </div>
+          <button id="btn-generate" class="btn btn-primary full-width">Generate Image</button>
+          <div id="gen-preview"></div>
+          <button id="btn-gen-add-overlay" class="btn btn-secondary full-width" style="display:none">Add as Overlay</button>
+        </div>
+
+        <div id="tab-tts" class="tab-content">
+          <label>Text to convert to speech:</label>
+          <textarea id="tts-text" rows="3" placeholder="Enter text for voiceover..."></textarea>
+          <button id="btn-tts" class="btn btn-primary full-width">Generate Voice</button>
+          <div id="tts-preview"></div>
+          <button id="btn-tts-add" class="btn btn-secondary full-width" style="display:none">Add to Timeline</button>
+        </div>
+
+        <div id="tab-detect" class="tab-content">
+          <p>Analyze the current frame for objects.</p>
+          <button id="btn-detect" class="btn btn-primary full-width">Detect Objects</button>
+          <div id="detect-results"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="timeline-panel">
+      <div class="timeline-header">
+        <h3>Timeline</h3>
+        <div class="timeline-controls">
+          <button id="btn-zoom-in" class="btn btn-icon btn-small" title="Zoom In">+</button>
+          <button id="btn-zoom-out" class="btn btn-icon btn-small" title="Zoom Out">-</button>
+          <button id="btn-add-scene" class="btn btn-secondary btn-small">+ Scene</button>
+        </div>
+      </div>
+      <div id="timeline-tracks">
+        <div id="playhead"></div>
+        <div id="video-track" class="track">
+          <div class="track-label">Video</div>
+          <div class="track-content" id="video-track-content"></div>
+        </div>
+        <div id="audio-track" class="track">
+          <div class="track-label">Audio</div>
+          <div class="track-content" id="audio-track-content"></div>
+        </div>
+        <div id="overlay-track" class="track">
+          <div class="track-label">Overlay</div>
+          <div class="track-content" id="overlay-track-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input id="file-input-video" type="file" accept="video/*" style="display:none" />
+  <input id="file-input-image" type="file" accept="image/*" style="display:none" />
+
+  <script src="utils.js"></script>
+  <script src="editor.js"></script>
+  <script src="timeline.js"></script>
+  <script src="ai-panel.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
