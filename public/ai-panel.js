@@ -185,6 +185,53 @@ class AIPanel {
         const info = e.getEditSummary();
         this.addChatMessage("ai", `Video info: Duration ${info.duration / 1000}s, Trim ${info.trimStart / 1000}s-${info.trimEnd / 1000}s, Speed ${info.playbackRate}x, ${info.overlayCount} overlays`);
         break;
+
+      case "apply_effect":
+        const effectType = action.params.type;
+        const effectOpts = action.params.opts || {};
+        const effectConfig = e.effects[effectType](effectOpts);
+        e.effects.applyEffect(effectConfig);
+        this.addChatMessage("ai", `Applied effect: ${effectConfig.label}`);
+        break;
+
+      case "remove_effect":
+        e.effects.removeEffect(action.params.type);
+        this.addChatMessage("ai", `Removed ${action.params.type} effect`);
+        break;
+
+      case "clear_effects":
+        e.effects.clearAll();
+        this.addChatMessage("ai", "Cleared all effects");
+        break;
+
+      case "detect_and_edit":
+        this.handleDetectAndEdit(action.params.description);
+        break;
+    }
+  }
+
+  async handleDetectAndEdit(description) {
+    this.addChatMessage("ai", `Analyzing video frame and applying: "${description}"`);
+    try {
+      const blob = await this.editor.getCanvasBlob();
+      const formData = new FormData();
+      formData.append("image", blob, "frame.png");
+      const detectRes = await fetch("/api/detect-objects", { method: "POST", body: formData });
+      const detected = await detectRes.json();
+      const sceneDesc = detected.map(d => `${d.label} (${(d.score * 100).toFixed(0)}%)`).join(", ");
+      this.addChatMessage("ai", `Detected: ${sceneDesc || "nothing specific"}`);
+
+      const chatRes = await apiPostJSON("/api/chat", {
+        messages: [
+          { role: "user", content: `I detected these objects in the video: ${sceneDesc}. The user wants: "${description}". What effects should I apply? Respond with JSON action objects.` },
+        ],
+        editContext: this.editor.getEditSummary(),
+      });
+      const response = chatRes.response || chatRes.choices?.[0]?.message?.content || "";
+      this.addChatMessage("ai", response);
+      this.parseAndExecute(response);
+    } catch (err) {
+      this.addChatMessage("ai", `Error: ${err.message}`);
     }
   }
 

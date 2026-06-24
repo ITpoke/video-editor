@@ -22,6 +22,7 @@ class VideoEditor {
     this.flipX = false;
     this.flipY = false;
     this.textEffects = [];
+    this.effects = new EffectsEngine(this);
     this.onEdit = null;
 
     this.video.addEventListener("loadedmetadata", () => {

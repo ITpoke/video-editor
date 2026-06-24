@@ -152,12 +152,32 @@ DETECT OBJECTS in current frame:
 GET VIDEO INFO:
 {"action":"get_info","params":{}}
 
+APPLY VISUAL EFFECTS (particles animated over video):
+{"action":"apply_effect","params":{"type":"stars","opts":{"count":80}}}
+{"action":"apply_effect","params":{"type":"snow","opts":{"count":100,"speed":2}}}
+{"action":"apply_effect","params":{"type":"rain","opts":{"count":150,"speed":10}}}
+{"action":"apply_effect","params":{"type":"fireflies","opts":{"count":40}}}
+{"action":"apply_effect","params":{"type":"sakura","opts":{"count":50}}}
+{"action":"apply_effect","params":{"type":"bubbles","opts":{"count":40}}}
+{"action":"apply_effect","params":{"type":"leaves","opts":{"count":30}}}
+{"action":"apply_effect","params":{"type":"sparks","opts":{"count":60}}}
+
+Available effect types: stars, snow, rain, fireflies, sakura, bubbles, leaves, sparks
+
+REMOVE / CLEAR EFFECTS:
+{"action":"remove_effect","params":{"type":"stars"}}
+{"action":"clear_effects","params":{}}
+
+COMPLEX EDITS - detect scene then apply matching effect:
+{"action":"detect_and_edit","params":{"description":"add stars to the sky"}}
+
 RULES:
-1. ALWAYS output the action JSON when the user asks you to edit something
+1. ALWAYS output the action JSON when the user asks to edit something
 2. You can output multiple actions in sequence
 3. Use the current video state to make smart decisions
-4. Be concise and friendly
-5. After performing actions, confirm what you did${contextStr}`;
+4. For complex requests like "add stars to the sky", use detect_and_edit to analyze the scene first
+5. Be concise and friendly
+6. After performing actions, confirm what you did${contextStr}`;
 
   const allMessages: RoleScopedChatInput[] = [
     { role: "system", content: systemPrompt },
